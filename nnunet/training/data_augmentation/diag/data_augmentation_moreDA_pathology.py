@@ -45,13 +45,7 @@ def get_moreDA_augmentation_pathology(dataloader_train, dataloader_val, patch_si
                             seeds_train=None, seeds_val=None, order_seg=1, order_data=3, deep_supervision_scales=None,
                             soft_ds=False,
                             classes=None, pin_memory=True, regions=None,
-                            use_nondetMultiThreadedAugmenter: bool = False,
-                            do_hed=True,
-                            hed_factor=0.04,
-                            do_hsv=True,
-                            hsv_h_lim=0.15,
-                            hsv_s_lim=0.15,
-                            hsv_v_lim=0.10):
+                            use_nondetMultiThreadedAugmenter: bool = False):
     assert params.get('mirror') is None, "old version of params, use new keyword do_mirror"
 
     tr_transforms = []
@@ -90,16 +84,19 @@ def get_moreDA_augmentation_pathology(dataloader_train, dataloader_val, patch_si
 
     # we need to put the color augmentations after the dummy 2d part (if applicable). Otherwise the overloaded color
     # channel gets in the way
-    tr_transforms.append(GaussianNoiseTransform(p_per_sample=0.1))
-    tr_transforms.append(GaussianBlurTransform((0.5, 1.), different_sigma_per_channel=True, p_per_sample=0.2,
-                                               p_per_channel=0.5))
+    if params.get("do_noise"):
+        tr_transforms.append(GaussianNoiseTransform(noise_variance=params.get("noise_variance"), p_per_sample=0.1))
+    if params.get("do_blur"):
+        tr_transforms.append(GaussianBlurTransform(blur_sigma=params.get("blur_sigma")))
+        tr_transforms.append(GaussianBlurTransform(params.get("blur_sigma"), different_sigma_per_channel=True, p_per_sample=0.2,
+                                                    p_per_channel=0.5))
 ####
-    if do_hed:
-        tr_transforms.append(HedTransform(factor=hed_factor))
-    if do_hsv:
-        tr_transforms.append(HsvTransform(h_lim=hsv_h_lim, s_lim=hsv_s_lim, v_lim=hsv_v_lim))
+    if params.get("do_hed"):
+        tr_transforms.append(HedTransform(factor=params.get("hed_factor")))
+    if params.get("do_hsv"):
+        tr_transforms.append(HsvTransform(h_lim=params.get("hsv_h_lim"), s_lim=params.get("hsv_s_lim"), v_lim=params.get("hsv_v_lim")))
 ####
-    tr_transforms.append(BrightnessMultiplicativeTransform(multiplier_range=(0.75, 1.25), p_per_sample=0.15))
+    # tr_transforms.append(BrightnessMultiplicativeTransform(multiplier_range=(0.75, 1.25), p_per_sample=0.15))
 
     if params.get("do_additive_brightness"):
         tr_transforms.append(BrightnessTransform(params.get("additive_brightness_mu"),
@@ -107,17 +104,19 @@ def get_moreDA_augmentation_pathology(dataloader_train, dataloader_val, patch_si
                                                  True, p_per_sample=params.get("additive_brightness_p_per_sample"),
                                                  p_per_channel=params.get("additive_brightness_p_per_channel")))
 
-    tr_transforms.append(ContrastAugmentationTransform(p_per_sample=0.15))
+    if params.get("do_contrast"):
+        tr_transforms.append(ContrastAugmentationTransform(contrast_range=params.get("contrast_range")))
 
+    if params.get("do_low_res"):
+        tr_transforms.append(SimulateLowResolutionTransform(zoom_range=(0.5, 1), per_channel=True,
+                                                          p_per_channel=0.5,
+                                                          order_downsample=0, order_upsample=3, p_per_sample=0.25,
+                                                          ignore_axes=ignore_axes))
 
-
-    tr_transforms.append(SimulateLowResolutionTransform(zoom_range=(0.5, 1), per_channel=True,
-                                                        p_per_channel=0.5,
-                                                        order_downsample=0, order_upsample=3, p_per_sample=0.25,
-                                                        ignore_axes=ignore_axes))
-    tr_transforms.append(
-        GammaTransform(params.get("gamma_range"), True, True, retain_stats=params.get("gamma_retain_stats"),
-                       p_per_sample=0.1))  # inverted gamma
+    if params.get("do_inverted_gamma"):
+        tr_transforms.append(
+            GammaTransform(params.get("gamma_range"), True, True, retain_stats=params.get("gamma_retain_stats"),
+                          p_per_sample=0.1))  # inverted gamma
 
     if params.get("do_gamma"):
         tr_transforms.append(
