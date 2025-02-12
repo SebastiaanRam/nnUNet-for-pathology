@@ -36,7 +36,7 @@ from nnunet.training.learning_rate.poly_lr import poly_lr
 from batchgenerators.utilities.file_and_folder_operations import *
 from nnunet.training.loss_functions.dice_loss import DC_and_CE_loss
 
-class nnUNetTrainerV2_pathology_wunjo(nnUNetTrainer):
+class nnUNetTrainerV2_pathology_hagalaz(nnUNetTrainer):
     """
     Info for Fabian: same as internal nnUNetTrainerV2_2
     """
